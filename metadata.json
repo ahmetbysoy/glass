@@ -1,0 +1,6 @@
+{
+  "name": "CoinGlass Likidasyon Takip",
+  "description": "Gerçek Zamanlı Altcoin Short Likidasyon Takip ve 1 Dakikalık Yön Tahmini Analiz Ajanı",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
