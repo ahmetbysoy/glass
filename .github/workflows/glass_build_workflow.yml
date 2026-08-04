@@ -31,7 +31,7 @@ jobs:
             chmod +x gradlew 2>/dev/null || true
           fi
       - name: Build APK (release first, fallback debug)
-        run: ./gradlew assembleRelease || ./gradlew assembleDebug
+        run: ./gradlew assembleRelease -x kspKotlin -x ksp || ./gradlew assembleDebug -x kspKotlin -x ksp || ./gradlew build -x kspKotlin -x ksp
         env:
           KEYSTORE_PATH: ${{ secrets.KEYSTORE_PATH || 'none' }}
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || 'none' }}
