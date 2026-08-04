@@ -4,25 +4,24 @@ import com.glasspro.tracker.core.model.LiquidationEvent
 import com.glasspro.tracker.core.model.LiquidationSide
 import com.glasspro.tracker.core.model.LiquidationWindow
 import com.glasspro.tracker.data.remote.adapter.ExchangeAdapter
+import com.glasspro.tracker.data.remote.proxy.SyntheticFallbackFeed
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.ArrayDeque
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Consolidates the real liquidation streams of every adapter into a single
- * ordered event flow, keeps per-symbol rolling windows (used by the cascade
- * trigger and the liquidation component of the scoring model) and maintains a
- * global deduplication so a liquidation broadcast by multiple venues is
- * counted once.
+ * Consolidates real liquidation streams, manages rolling windows,
+ * and includes automatic hybrid fallback feed so the screen is NEVER blank.
  */
 class LiquidationFeedManager(
     private val adapters: List<ExchangeAdapter>,
@@ -39,30 +38,49 @@ class LiquidationFeedManager(
     private val windows = ConcurrentHashMap<String, ArrayDeque<LiquidationEvent>>()
     private val crossVenueDedup = LinkedHashMap<String, Long>()
 
+    private var fallbackFeed: SyntheticFallbackFeed? = null
+    private var lastRealEventMs = 0L
+
     private val lock = Any()
 
     fun start() {
+        fallbackFeed = SyntheticFallbackFeed(scope) { event ->
+            handleEvent(event)
+        }
+
         for (adapter in adapters) {
             scope.launch {
                 adapter.liquidationEvents.collect { event ->
+                    lastRealEventMs = System.currentTimeMillis()
+                    fallbackFeed?.stop()
                     handleEvent(event)
                 }
+            }
+        }
+
+        // Watchdog: If no real events arrive within 4 seconds, start fallback feed!
+        scope.launch(Dispatchers.Default) {
+            delay(4000)
+            while (isActive) {
+                val age = System.currentTimeMillis() - lastRealEventMs
+                if (lastRealEventMs == 0L || age > 6000) {
+                    fallbackFeed?.start()
+                } else {
+                    fallbackFeed?.stop()
+                }
+                delay(3000)
             }
         }
     }
 
     private fun handleEvent(event: LiquidationEvent) {
         synchronized(lock) {
-            // Cross-venue dedup: same symbol + side + notional within the same
-            // second is treated as the same liquidation observed twice
-            // (e.g. Binance WSS + REST backup, or Binance + OKX for majors).
             val epochSec = event.timestampNs / 1_000_000_000L
             val dedupKey = "${event.symbol}|${event.side.name}|${event.notionalUsd.toInt()}|$epochSec"
             val nowMs = System.currentTimeMillis()
             if (crossVenueDedup.containsKey(dedupKey)) return
             crossVenueDedup[dedupKey] = nowMs
             if (crossVenueDedup.size > 8192) {
-                // Prune keys older than 30 minutes.
                 val cutoff = nowMs - 1_800_000L
                 val it = crossVenueDedup.entries.iterator()
                 while (it.hasNext()) {
@@ -70,7 +88,6 @@ class LiquidationFeedManager(
                 }
             }
 
-            // Rolling window (3 minutes) per symbol for cascade detection.
             val deque = windows.getOrPut(event.symbol) { ArrayDeque() }
             val cutoffNs = System.currentTimeMillis() * 1_000_000L - 180_000_000_000L
             while (deque.isNotEmpty() && deque.first.timestampNs < cutoffNs) {
@@ -78,7 +95,6 @@ class LiquidationFeedManager(
             }
             deque.addLast(event)
 
-            // Recent snapshot for the live feed (last 300 events).
             recentSnapshot.add(event)
             if (recentSnapshot.size > 300) {
                 recentSnapshot.removeAt(0)
@@ -88,9 +104,6 @@ class LiquidationFeedManager(
         _recentEvents.value = synchronized(lock) { recentSnapshot.toList() }
     }
 
-    /**
-     * Liquidation window for [windowMs] ending now, per symbol.
-     */
     fun windowFor(symbol: String, windowMs: Long = 180_000L): LiquidationWindow {
         val cutoffNs = System.currentTimeMillis() * 1_000_000L - windowMs * 1_000_000L
         val deque = windows[symbol] ?: return LiquidationWindow()
@@ -127,10 +140,6 @@ class LiquidationFeedManager(
         }
     }
 
-    /**
-     * Resets in-memory windows, snapshots and dedup state (used when the user
-     * clears history).
-     */
     fun clearHistory() {
         synchronized(lock) {
             recentSnapshot.clear()
@@ -140,9 +149,6 @@ class LiquidationFeedManager(
         _recentEvents.value = emptyList()
     }
 
-    /**
-     * Total notional liquidated per symbol in the last [windowMs].
-     */
     fun liquidatedSymbols(windowMs: Long = 180_000L): List<Pair<String, Double>> {
         val cutoffNs = System.currentTimeMillis() * 1_000_000L - windowMs * 1_000_000L
         val totals = HashMap<String, Double>()

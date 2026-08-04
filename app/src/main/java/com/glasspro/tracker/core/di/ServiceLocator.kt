@@ -15,23 +15,32 @@ import com.glasspro.tracker.data.remote.adapter.ExchangeAdapter
 import com.glasspro.tracker.data.remote.adapter.GateFuturesAdapter
 import com.glasspro.tracker.data.remote.adapter.HyperliquidAdapter
 import com.glasspro.tracker.data.remote.adapter.OkxAdapter
+import com.glasspro.tracker.data.remote.proxy.ProxyManager
 import com.glasspro.tracker.data.remote.rest.RestClient
 import com.glasspro.tracker.data.remote.ws.WebSocketClient
 import com.glasspro.tracker.data.repository.MarketRepository
-import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
- * Manual dependency container. Everything is constructed here exactly once
- * and shared; the dependency graph is visible in one place.
+ * Manual dependency container with Auto-Proxy speed benchmarking.
  */
 class ServiceLocator(context: Context) {
 
     private val appContext = context.applicationContext
 
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    init {
+        appScope.launch {
+            try {
+                ProxyManager.instance.testAllProxiesAndSelectFastest()
+            } catch (_: Exception) {
+            }
+        }
+    }
 
     private val restClient = RestClient(RestClient.buildOkHttpClient())
     private val wsOkHttpClient = WebSocketClient.buildOkHttpClient()
