@@ -96,14 +96,29 @@ fun MainScreen(viewModel: MarketViewModel) {
                         }
                         Spacer(modifier = Modifier.width(10.dp))
                         Column {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "GlassPro",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(4.dp),
+                                    color = ElectricCyanBg
+                                ) {
+                                    Text(
+                                        text = "VG v6 🪤",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = ElectricCyan,
+                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
+                                    )
+                                }
+                            }
                             Text(
-                                text = "GlassPro",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "Gerçek Likidasyon & Analiz",
+                                text = "Gerçek Likidasyon & VG Matrix",
                                 fontSize = 10.sp,
                                 color = TextSecondary
                             )

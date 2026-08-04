@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -28,7 +29,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,9 +44,13 @@ import com.glasspro.tracker.core.model.LiquidationSide
 import com.glasspro.tracker.core.model.MarketStats
 import com.glasspro.tracker.data.remote.adapter.AdapterHealth
 import com.glasspro.tracker.data.remote.adapter.AdapterStatus
+import com.glasspro.tracker.ui.components.MarketHealthBanner
 import com.glasspro.tracker.ui.theme.ElectricCyan
 import com.glasspro.tracker.ui.theme.ElectricCyanBg
+import com.glasspro.tracker.ui.theme.NeonAmber
+import com.glasspro.tracker.ui.theme.NeonAmberBg
 import com.glasspro.tracker.ui.theme.NeonGreen
+import com.glasspro.tracker.ui.theme.NeonGreenBg
 import com.glasspro.tracker.ui.theme.NeonRed
 import com.glasspro.tracker.ui.theme.NeonRedBg
 import com.glasspro.tracker.ui.theme.SlateBorder
@@ -60,10 +64,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/**
- * Live real liquidation feed. Every row is a real force-order event streamed
- * from Binance/OKX (or polled from Bybit). Nothing here is generated.
- */
 @Composable
 fun LiveFeedTab(
     liquidations: List<LiquidationEvent>,
@@ -85,7 +85,80 @@ fun LiveFeedTab(
             .background(SlateDark)
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Proxy Health & Speed Indicator Banner
+        MarketHealthBanner()
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // VG Matrix v6 & Kinematic Momentum Card
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = SlateCard),
+            border = CardDefaults.outlinedCardBorder()
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = "VG",
+                            tint = ElectricCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "VG MATRIX v6",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = ElectricCyan
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = NeonAmberBg
+                        ) {
+                            Text(
+                                text = "🪤 BOĞA TUZAĞI ASİSTANI",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = NeonAmber,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = NeonGreenBg
+                    ) {
+                        Text(
+                            text = "⚡ KİNEMATİK İVME",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeonGreen,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Text(
+                    text = "True Gaussian Kernel • John Ehlers N-Pole IIR Filter • Velocity & Acceleration Scalper",
+                    fontSize = 10.sp,
+                    color = TextSecondary
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Summary card
         Card(
@@ -94,7 +167,7 @@ fun LiveFeedTab(
             colors = CardDefaults.cardColors(containerColor = SlateSurface),
             border = CardDefaults.outlinedCardBorder()
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Column(modifier = Modifier.padding(14.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -124,7 +197,7 @@ fun LiveFeedTab(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Column {
@@ -149,7 +222,6 @@ fun LiveFeedTab(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Short/long ratio bar
                 val totalVol = maxOf(1.0, marketStats.totalShortUsd + marketStats.totalLongUsd)
                 val shortRatio = (marketStats.totalShortUsd / totalVol).toFloat().coerceIn(0.05f, 0.95f)
                 Row(
@@ -175,49 +247,18 @@ fun LiveFeedTab(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Exchange connection health
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            feedHealth.forEach { health ->
-                Surface(
-                    shape = RoundedCornerShape(6.dp),
-                    color = when (health.status) {
-                        AdapterStatus.LIVE -> com.glasspro.tracker.ui.theme.NeonGreenBg
-                        AdapterStatus.DEGRADED -> com.glasspro.tracker.ui.theme.NeonAmberBg
-                        AdapterStatus.DOWN -> NeonRedBg
-                    }
-                ) {
-                    Text(
-                        text = health.exchange,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = when (health.status) {
-                            AdapterStatus.LIVE -> NeonGreen
-                            AdapterStatus.DEGRADED -> com.glasspro.tracker.ui.theme.NeonAmber
-                            AdapterStatus.DOWN -> NeonRed
-                        },
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Threshold chips
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            listOf(2500.0, 5000.0, 10000.0, 25000.0).forEach { threshold ->
+            listOf(1000.0, 2500.0, 5000.0, 10000.0).forEach { threshold ->
                 val label = when (threshold) {
+                    1000.0 -> "$1K"
                     2500.0 -> "$2.5K"
                     10000.0 -> "$10K"
-                    25000.0 -> "$25K"
                     else -> "$5K"
                 }
                 FilterChip(
@@ -240,7 +281,7 @@ fun LiveFeedTab(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
