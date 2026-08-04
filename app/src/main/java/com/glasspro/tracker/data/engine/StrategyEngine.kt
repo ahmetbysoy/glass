@@ -1,19 +1,20 @@
 package com.glasspro.tracker.data.engine
 
 import com.glasspro.tracker.core.math.Stats
+import com.glasspro.tracker.core.math.VgSetupResult
 import com.glasspro.tracker.core.model.Direction
 import com.glasspro.tracker.core.model.StrategySignal
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * ATR-based position strategy generator (methodology of the reference engine):
+ * ATR-based position strategy generator with VG Terminal Short Setup integration:
  *
  *  - Stop loss at 1.5x ATR, take profit at 3.0x ATR from entry.
  *  - Direction from the aggregate score with a +/-20 neutral band.
  *  - Leverage recommendation inversely proportional to volatility,
  *    clamped between 2x and 50x.
- *  - Alerts for extreme funding and taker-pressure regimes.
+ *  - Alerts for extreme funding, taker-pressure, and VG Bull-Trap setups.
  */
 object StrategyEngine {
 
@@ -23,7 +24,8 @@ object StrategyEngine {
         direction: Direction,
         atrPct: Double,
         fundingRatePct: Double?,
-        takerBuyPct: Double?
+        takerBuyPct: Double?,
+        vgSetup: VgSetupResult? = null
     ): StrategySignal {
         val slDist = price * (atrPct * 1.5 / 100.0)
         val tpDist = price * (atrPct * 3.0 / 100.0)
@@ -41,6 +43,14 @@ object StrategyEngine {
         }
 
         val alerts = mutableListOf<String>()
+
+        vgSetup?.let { vg ->
+            alerts.add("VG Short Skor: ${vg.finalScore}/100 [${vg.badgeText}] (Yapı: ${vg.structuralScore.toInt()}, RSI: ${vg.rsiLabel})")
+            if (vg.isBullTrap) {
+                alerts.add("🪤 TAZE BOĞA TUZAĞI: Alım kesisiminden 6-20 bar sonra gelen SAT kaskadı!")
+            }
+        }
+
         val fw = fundingRatePct
         if (fw != null) {
             if (fw < -0.01) {

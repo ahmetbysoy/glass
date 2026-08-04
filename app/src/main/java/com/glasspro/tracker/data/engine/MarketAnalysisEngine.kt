@@ -235,13 +235,19 @@ class MarketAnalysisEngine(
         )
 
         // Strategy.
+        val vgSetup = com.glasspro.tracker.core.math.VgIndicatorEngine.computeShortSetup(
+            bundle.candles["15m"].orEmpty(),
+            "15m"
+        )
+
         val strategy = StrategyEngine.generate(
             price = price,
             totalScore = totalScore,
             direction = direction,
             atrPct = atrPct1h,
             fundingRatePct = bundle.fundingRatePct,
-            takerBuyPct = bundle.takerBuyPct
+            takerBuyPct = bundle.takerBuyPct,
+            vgSetup = vgSetup
         )
 
         val now = System.currentTimeMillis()
