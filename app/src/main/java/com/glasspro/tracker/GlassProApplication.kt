@@ -36,6 +36,11 @@ class GlassProApplication : Application() {
                 val sw = StringWriter()
                 throwable.printStackTrace(PrintWriter(sw))
                 val crashLog = File(filesDir, CRASH_LOG_NAME)
+                // Maksimum 50 KB log sınırı
+                if (crashLog.length() > 50 * 1024) {
+                    val trimmed = crashLog.readText().takeLast(45 * 1024)
+                    crashLog.writeText(trimmed)
+                }
                 crashLog.appendText(
                     "=== ${System.currentTimeMillis()} [${thread.name}] ===\n" +
                         "${throwable.javaClass.name}: ${throwable.message}\n$sw\n\n"
