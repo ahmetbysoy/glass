@@ -10,6 +10,7 @@ import com.glasspro.tracker.data.remote.adapter.OrderBookData
 import com.glasspro.tracker.data.remote.adapter.TickerData
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 
 /**
  * Aggregated, normalized market data for one symbol pulled from every live
@@ -52,36 +53,37 @@ class MarketDataService(
      * Lightweight consensus price (ticker round-trips only). Used by the
      * verification loop where a full bundle would be wasteful.
      */
-    suspend fun fetchConsensusPrice(symbol: String): Double? = coroutineScope {
+    suspend fun fetchConsensusPrice(symbol: String): Double? = supervisorScope {
         val tickerJobs = adapters.map { adapter ->
-            async { adapter.exchangeName to adapter.fetchTicker(symbol) }
+            async {
+                runCatching { adapter.exchangeName to adapter.fetchTicker(symbol) }.getOrNull()
+            }
         }
         val prices = tickerJobs.mapNotNull { it.await() }
             .filter { it.second != null }
             .mapNotNull { (_, t) -> t!!.last }
-        if (prices.isEmpty()) return@coroutineScope null
-        val median = Stats.median(prices) ?: return@coroutineScope null
+        if (prices.isEmpty()) return@supervisorScope null
+        val median = Stats.median(prices) ?: return@supervisorScope null
         val accepted = prices.filter { p ->
             val dev = kotlin.math.abs(p - median) / median * 100.0
             val z = Stats.robustZScore(p, prices)
             dev <= MAX_DEVIATION_PCT && (z == null || z <= 3.0)
         }
-        if (accepted.isEmpty()) return@coroutineScope null
+        if (accepted.isEmpty()) return@supervisorScope null
         Stats.median(accepted)
     }
 
-    suspend fun fetchBundle(symbol: String): MarketBundle? = coroutineScope {
+    suspend fun fetchBundle(symbol: String): MarketBundle? = supervisorScope {
         val tickerJobs = adapters.map { adapter ->
-            async { adapter.exchangeName to adapter.fetchTicker(symbol) }
+            async { runCatching { adapter.exchangeName to adapter.fetchTicker(symbol) }.getOrNull() }
         }
         val tickers = tickerJobs.mapNotNull { it.await() }
             .filter { it.second != null }
             .associate { it.first to it.second!! }
-
         val prices = tickers.mapNotNull { (_, t) -> t.last }
         if (prices.isEmpty()) {
             Log.w(TAG, "No real price available for $symbol from any venue")
-            return@coroutineScope null
+            return@supervisorScope null
         }
 
         // --- Quant Security Layer ---
@@ -103,9 +105,8 @@ class MarketDataService(
         val acceptedPrices = accepted.mapNotNull { (_, t) -> t.last }
         if (acceptedPrices.isEmpty()) {
             Log.w(TAG, "All venue prices rejected for $symbol; no consensus")
-            return@coroutineScope null
+            return@supervisorScope null
         }
-
         val consensus = Stats.median(acceptedPrices)!!
         val dispersion = Stats.mean(acceptedPrices)?.let { m ->
             if (m > 0.0) ((acceptedPrices.maxOrNull()!! - acceptedPrices.minOrNull()!!) / m) * 100.0 else 0.0
@@ -113,14 +114,14 @@ class MarketDataService(
 
         // --- Parallel secondary fetches ---
         val bookJobs = adapters.map { adapter ->
-            async { adapter.exchangeName to adapter.fetchOrderBook(symbol, 200) }
+            async { runCatching { adapter.exchangeName to adapter.fetchOrderBook(symbol, 200) }.getOrNull() }
         }
         val books = bookJobs.mapNotNull { it.await() }
             .filter { it.second != null }
             .associate { it.first to it.second!! }
 
         val tradeJobs = adapters.map { adapter ->
-            async { adapter.exchangeName to adapter.fetchTrades(symbol, 500) }
+            async { runCatching { adapter.exchangeName to adapter.fetchTrades(symbol, 500) }.getOrNull() }
         }
         val tradesByVenue = tradeJobs.mapNotNull { it.await() }
             .filter { it.second != null }
@@ -129,19 +130,21 @@ class MarketDataService(
 
         val candleJobs = TFs.map { tf ->
             async {
-                // OKX first, then Binance as fallback; both are always available
-                // for the watchlist instruments.
-                val okx = adapters.firstOrNull { it.exchangeName == "OKX" }
-                    ?.fetchCandles(symbol, tf, 300)
-                val binance = adapters.firstOrNull { it.exchangeName == "Binance" }
-                    ?.fetchCandles(symbol, tf, 300)
-                tf to (okx ?: binance ?: emptyList())
+                runCatching {
+                    // OKX first, then Binance as fallback; both are always available
+                    // for the watchlist instruments.
+                    val okx = adapters.firstOrNull { it.exchangeName == "OKX" }
+                        ?.fetchCandles(symbol, tf, 300)
+                    val binance = adapters.firstOrNull { it.exchangeName == "Binance" }
+                        ?.fetchCandles(symbol, tf, 300)
+                    tf to (okx ?: binance ?: emptyList())
+                }.getOrNull()
             }
         }
         val candles = candleJobs.mapNotNull { it.await() }.toMap()
 
         val derivJobs = adapters.map { adapter ->
-            async { adapter.exchangeName to adapter.fetchDerivativeData(symbol) }
+            async { runCatching { adapter.exchangeName to adapter.fetchDerivativeData(symbol) }.getOrNull() }
         }
         val derivatives = derivJobs.mapNotNull { it.await() }
             .filter { it.second != null }

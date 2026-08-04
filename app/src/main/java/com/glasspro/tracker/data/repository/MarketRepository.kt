@@ -236,7 +236,11 @@ class MarketRepository(
         cascadeShortUsd: Double
     ) {
         val calibration = calibrationFor(symbol)
-        val result = analysisEngine.analyze(symbol, horizonMs, horizonLabel, calibration) ?: return
+        val result = runCatching {
+            analysisEngine.analyze(symbol, horizonMs, horizonLabel, calibration)
+        }.onFailure { e ->
+            android.util.Log.e("MarketRepository", "Analysis failed for $symbol", e)
+        }.getOrNull() ?: return
         persistAnalysis(result, cascadeShortUsd)
         if (horizonLabel == "1DK" && triggerEvent != null) {
             _bannerTrigger.tryEmit(triggerEvent to result.direction.symbol)

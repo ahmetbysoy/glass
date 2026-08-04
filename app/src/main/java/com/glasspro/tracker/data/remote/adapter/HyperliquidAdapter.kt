@@ -71,20 +71,37 @@ class HyperliquidAdapter(
     }
 
     private suspend fun fetchMetaAndAssetCtxs(): Pair<List<String>, List<JSONObject>>? {
-        val body = JSONObject().put("type", "metaAndAssetCtxs")
-        val resp = restClient.postJsonArray(infoUrl, body) ?: return null
-        if (resp.length() < 2) return null
-        val universe = resp.getJSONArray(0)
-        val ctxs = resp.getJSONArray(1)
-        val names = mutableListOf<String>()
-        for (i in 0 until universe.length()) {
-            names.add(universe.optJSONObject(i)?.optString("name", "") ?: "")
+        return try {
+            val body = JSONObject().put("type", "metaAndAssetCtxs")
+            val resp = restClient.postJsonArray(infoUrl, body) ?: return null
+            if (resp.length() < 2) return null
+
+            val universeArray: JSONArray = when {
+                resp.optJSONObject(0) != null -> resp.optJSONObject(0)?.optJSONArray("universe")
+                resp.optJSONArray(0) != null -> resp.optJSONArray(0)
+                else -> null
+            } ?: return null
+
+            val ctxs: JSONArray = resp.optJSONArray(1) ?: return null
+
+            val names = mutableListOf<String>()
+            for (i in 0 until universeArray.length()) {
+                val item = universeArray.optJSONObject(i)
+                val coinName = item?.optString("name", "") ?: ""
+                names.add(coinName)
+            }
+            val ctxList = mutableListOf<JSONObject>()
+            for (i in 0 until ctxs.length()) {
+                val obj = ctxs.optJSONObject(i)
+                if (obj != null) {
+                    ctxList.add(obj)
+                }
+            }
+            names to ctxList
+        } catch (e: Exception) {
+            Log.e(TAG, "Error fetching Hyperliquid metaAndAssetCtxs: ${e.message}")
+            null
         }
-        val ctxList = mutableListOf<JSONObject>()
-        for (i in 0 until ctxs.length()) {
-            ctxList.add(ctxs.getJSONObject(i))
-        }
-        return names to ctxList
     }
 
     private suspend fun ctxFor(symbol: String): JSONObject? {

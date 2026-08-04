@@ -20,7 +20,7 @@ android {
     applicationId = "com.glasspro.tracker"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
+    versionCode = 200
     versionName = "2.0.0"
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

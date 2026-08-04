@@ -15,6 +15,7 @@ import com.glasspro.tracker.data.remote.MacroService
 import com.glasspro.tracker.data.remote.MarketDataService
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.min
@@ -81,10 +82,10 @@ class MarketAnalysisEngine(
         if (price <= 0.0) return null
 
         // Second order book round (3s later) for spoof detection.
-        val secondBooks = coroutineScope {
+        val secondBooks = supervisorScope {
             val bookJobs = marketDataService.adapters.map { adapter ->
                 async {
-                    adapter.exchangeName to adapter.fetchOrderBook(symbol, 200)
+                    runCatching { adapter.exchangeName to adapter.fetchOrderBook(symbol, 200) }.getOrNull()
                 }
             }
             bookJobs.mapNotNull { it.await() }
