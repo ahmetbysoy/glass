@@ -55,7 +55,8 @@ class BybitAdapter(
     private var liquidationsReceived = 0L
     private var lastSuccessAtMs = 0L
 
-    private val restBase = "https://api.bybit.com"
+    private val restBase: String
+        get() = com.glasspro.tracker.data.remote.proxy.ProxyManager.instance.getRestBaseUrl("Bybit")
 
     override fun start(scope: CoroutineScope) {
         pollJob = scope.launch {

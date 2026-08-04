@@ -46,7 +46,8 @@ class GateFuturesAdapter(
     private var pollJob: Job? = null
     private var lastSuccessAtMs = 0L
 
-    private val restBase = "https://api.gateio.ws"
+    private val restBase: String
+        get() = com.glasspro.tracker.data.remote.proxy.ProxyManager.instance.getRestBaseUrl("Gate")
 
     override fun start(scope: CoroutineScope) {
         pollJob = scope.launch {

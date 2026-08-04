@@ -67,7 +67,8 @@ class OkxAdapter(
     private data class CtValEntry(val multiplier: Double, val cachedAtMs: Long)
 
     private val wsUrl = "wss://ws.okx.com:8443/ws/v5/public"
-    private val restBase = "https://www.okx.com"
+    private val restBase: String
+        get() = com.glasspro.tracker.data.remote.proxy.ProxyManager.instance.getRestBaseUrl("OKX")
 
     override fun start(scope: CoroutineScope) {
         val client = wsClientFactory()

@@ -11,13 +11,6 @@ import okhttp3.Request
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
-data class ProxyEndpoint(
-    val url: String,
-    val isWs: Boolean,
-    val latencyMs: Long = -1L,
-    val isWorking: Boolean = false
-)
-
 data class ProxyStatusInfo(
     val activeBinanceUrl: String = "https://fapi.binance.com",
     val binanceLatencyMs: Long = 0L,
@@ -65,6 +58,16 @@ class ProxyManager {
         "https://aws.okx.com"
     )
 
+    private val bitgetRestMirrors = listOf(
+        "https://api.bitget.com",
+        "https://api.bitget.vip"
+    )
+
+    private val gateRestMirrors = listOf(
+        "https://api.gateio.ws",
+        "https://api.gateio.life"
+    )
+
     private val activeRestUrls = ConcurrentHashMap<String, String>()
     private val activeWsUrls = ConcurrentHashMap<String, String>()
 
@@ -72,6 +75,8 @@ class ProxyManager {
         activeRestUrls["Binance"] = binanceRestMirrors[0]
         activeRestUrls["Bybit"] = bybitRestMirrors[0]
         activeRestUrls["OKX"] = okxRestMirrors[0]
+        activeRestUrls["Bitget"] = bitgetRestMirrors[0]
+        activeRestUrls["Gate"] = gateRestMirrors[0]
 
         activeWsUrls["Binance"] = binanceWsMirrors[0]
     }
@@ -167,6 +172,8 @@ class ProxyManager {
             "Binance" -> binanceRestMirrors[0]
             "Bybit" -> bybitRestMirrors[0]
             "OKX" -> okxRestMirrors[0]
+            "Bitget" -> bitgetRestMirrors[0]
+            "Gate" -> gateRestMirrors[0]
             else -> ""
         }
     }
@@ -176,6 +183,8 @@ class ProxyManager {
             "Binance" -> binanceRestMirrors
             "Bybit" -> bybitRestMirrors
             "OKX" -> okxRestMirrors
+            "Bitget" -> bitgetRestMirrors
+            "Gate" -> gateRestMirrors
             else -> return ""
         }
 

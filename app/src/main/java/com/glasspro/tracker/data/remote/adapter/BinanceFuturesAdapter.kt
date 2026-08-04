@@ -70,7 +70,8 @@ class BinanceFuturesAdapter(
         "wss://stream.binancefuture.com/ws/!forceOrder@arr"
     )
 
-    private val restBase = "https://fapi.binance.com"
+    private val restBase: String
+        get() = com.glasspro.tracker.data.remote.proxy.ProxyManager.instance.getRestBaseUrl("Binance")
 
     override fun start(scope: CoroutineScope) {
         connectWs(scope)
