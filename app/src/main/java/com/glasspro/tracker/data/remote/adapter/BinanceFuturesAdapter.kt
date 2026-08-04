@@ -371,6 +371,6 @@ class BinanceFuturesAdapter(
 
     companion object {
         private const val TAG = "BinanceAdapter"
-        private const val REST_POLL_INTERVAL_MS = 30_000L
+        private const val REST_POLL_INTERVAL_MS = 5_000L
     }
 }

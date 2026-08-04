@@ -74,8 +74,8 @@ class MarketRepository(
     // Configurable analysis parameters (UI-bound)
     // ------------------------------------------------------------------
 
-    val minUsdThreshold = MutableStateFlow(5000.0)
-    val excludeBtcEth = MutableStateFlow(true)
+    val minUsdThreshold = MutableStateFlow(1000.0)
+    val excludeBtcEth = MutableStateFlow(false)
     val cooldownSec = MutableStateFlow(60L)
     val tacticalHorizonMs = MutableStateFlow(60_000L)
     val strategicHorizonMs = MutableStateFlow(3_600_000L)

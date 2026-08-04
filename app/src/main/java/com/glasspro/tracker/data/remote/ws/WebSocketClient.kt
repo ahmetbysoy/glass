@@ -135,7 +135,12 @@ class WebSocketClient(
     private suspend fun openConnection(): Boolean = withContext(Dispatchers.IO) {
         try {
             val handshake = CompletableDeferred<Boolean>()
-            val request = Request.Builder().url(url).build()
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36")
+                .header("Accept", "*/*")
+                .header("Cache-Control", "no-cache")
+                .build()
 
             val listener = object : WebSocketListener() {
                 override fun onOpen(webSocket: WebSocket, response: Response) {

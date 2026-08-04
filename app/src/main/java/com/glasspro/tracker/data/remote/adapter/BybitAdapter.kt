@@ -303,7 +303,7 @@ class BybitAdapter(
 
     companion object {
         private const val TAG = "BybitAdapter"
-        private const val POLL_INTERVAL_MS = 10_000L
+        private const val POLL_INTERVAL_MS = 5_000L
         private const val STALE_MS = 30_000L
     }
 }
